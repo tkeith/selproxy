@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+cd `dirname $0`
+cp selproxy /usr/local/bin/
+cp upstart.conf /etc/init/selproxy.conf
+service selproxy restart

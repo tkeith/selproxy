@@ -84,10 +84,12 @@ class Session(object):
         log.debug('Made session')
         self.create_res = res.json()
         self.sid = self.create_res['sessionId']
-        self.save()
+        block_get_lock('sessionlock-{}'.format(self.sid))
         log.debug('Lauching watcher')
-        subprocess.Popen([__file__, 'watcher', self.sid])
+        self.watcher_pid = subprocess.Popen([__file__, 'watcher', self.sid]).pid
+        self.save()
         log.debug('Watcher started')
+        close_lock('sessionlock-{}'.format(self.sid))
 
     def renew(self):
         self.last_active = time()
@@ -143,7 +145,10 @@ def proxy(url):
             with session_cm(sid) as sess:
                 log.debug('Got session')
                 if method == 'DELETE' and len(urlsplit) == 2:
-                    sess.close()
+                    try:
+                        sess.close()
+                    finally:
+                        os.kill(sess.watcher_pid, signal.SIGTERM)
                     return flask.jsonify(sess.close_res)
                 else:
                     res = getattr(requests, method.lower())('{}/{}'.format(sess.url, url), timeout=CHROMEDRIVER_TIMEOUT, **kwargs)
@@ -155,6 +160,7 @@ def proxy(url):
         return flask.jsonify(status=6, value=dict(message=type(e).__name__))
 
 def main():
+    signal.signal(signal.SIGTERM, lambda sn, sf: sys.exit(0))
     if len(sys.argv) >= 2 and sys.argv[1] == 'watcher':
         watcher(sys.argv[2])
         return
