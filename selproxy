@@ -39,7 +39,7 @@ def close_lock(name):
 
 def get_port():
     while True:
-        port = random.randint(14000, 14999)
+        port = random.SystemRandom().randint(14000, 14999)
         if get_lock('portlock-{}'.format(port)):
             return port
 
