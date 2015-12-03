@@ -13,6 +13,7 @@ from contextlib import contextmanager
 import subprocess
 import os
 import signal
+import multiprocessing
 
 TIMEOUT = 60
 CHROMEDRIVER_TIMEOUT = 60
@@ -159,6 +160,11 @@ def proxy(url):
         log.debug('Got exception: {}'.format(type(e)))
         return flask.jsonify(status=6, value=dict(message=type(e).__name__))
 
+def chromekiller():
+    while True:
+        sleep(15)
+        subprocess.call(['pkill', '-P', '1', '^chrome$'])
+
 def main():
     signal.signal(signal.SIGTERM, lambda sn, sf: sys.exit(0))
     if len(sys.argv) >= 2 and sys.argv[1] == 'watcher':
@@ -174,6 +180,7 @@ def main():
     else:
         raise Exception('Failed to connect to redis')
     r.flushdb()
+    multiprocessing.Process(target=chromekiller, daemon=True).start()
     app.run(processes=10, port=4444)
 
 if __name__ == '__main__':
